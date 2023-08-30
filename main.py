@@ -11,12 +11,17 @@ app = Flask(__name__)
 uri = "mongodb+srv://sagarchovatiya0104:sagarchovatiya0104@cluster0.onof6ue.mongodb.net/?retryWrites=true&w=majority"
 # Create a new client and connect to the server
 mongodb_client = MongoClient(uri, server_api=ServerApi('1'))
-# app.config["SECRET_KEY"] = "3c323796460665ffb44cf595a11bc8fa97f0433f"
-# app.config["MONGO_URI"] = "mongodb+srv://sagarchovatiya0104:sagarchovatiya0104@cluster0.onof6ue.mongodb.net/?retryWrites=true&w=majority"
-
-
-# mongodb_client = PyMongo(app)
 db = mongodb_client.db
+
+
+class User(object):
+    def __init__(self, _id, name, age):
+        self.id = _id
+        self.name = name
+        self.age = age
+
+    def __str__(self):
+        return "{0} ,{1}, {2}".format(self.id, self.name, self.age)
 
 
 @app.route("/")
@@ -29,15 +34,10 @@ def test():
     if request.method == "GET":
         id = request.args.get('name')
         response = db.chatbot.find({'name': id})
-        # response = db.chatbot.find()
         for res in response:
-            print(res)
-            res = {
-                'name' : res['name'],
-                'age': res['age']
-            }
-            return res
-        # print(response)
+            usr = User(**res)
+            print(usr)
+            return "success"
     if request.method == "POST":
         name = request.args.get('name')
         age = request.args.get('age')
