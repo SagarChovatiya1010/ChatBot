@@ -101,6 +101,10 @@ def next_step():
                 available_next_steps = bot_step_obj.next_steps
                 if next_step in available_next_steps:
                     db.bot_execution.update_one({'cid': obj.cid}, {"$set": {'current_step': next_step}})
+                    bss = db.bot_steps.find({'step_id': next_step})
+                    for bs in bss:
+                        bsob = BotSteps(**bs)
+                        return bsob.next_steps
                 else:
                     return "enter a valid input"
 
