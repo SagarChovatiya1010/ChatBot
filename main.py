@@ -8,6 +8,7 @@ from pymongo.server_api import ServerApi
 
 from src.models.add_data import AddData
 from src.models.bot import Bot
+from src.models.bot_execution import BotExecution
 from src.models.bot_steps import BotSteps
 
 app = Flask(__name__)
@@ -67,6 +68,43 @@ def add_data():
             return "success"
         else:
             return 'Content-Type not supported!'
+
+
+@app.route('/next_step', methods=['GET'])
+def next_step():
+    if request.method == "GET":
+        cid = request.args.get('cid')
+        bot_id = request.args.get('bot_id')
+        next_step = request.args.get('next_step')
+        responses = db.bot_execution.find({'cid': cid})
+        obj = 0
+        count = 0
+        for r in responses:
+            count = count + 1
+            obj = BotExecution(**r)
+        if count == 0:
+            print('no customer present')
+            bot_execution_obj = BotExecution(_id=123, cid=cid, bot_id=bot_id, current_step='0')
+            bot_execution_obj = bot_execution_obj.__dict__
+            del bot_execution_obj['_id']
+            db.bot_execution.insert_one(bot_execution_obj)
+            bot_steps = db.bot_steps.find({'step_id': '0'})
+            for bot_step in bot_steps:
+                bot_step_obj = BotSteps(**bot_step)
+                return bot_step_obj.next_steps
+        else:
+            print('customer present')
+            current_step_id = obj.current_step
+            bot_steps = db.bot_steps.find({'step_id': current_step_id})
+            for bot_step in bot_steps:
+                bot_step_obj = BotSteps(**bot_step)
+                available_next_steps = bot_step_obj.next_steps
+                if next_step in available_next_steps:
+                    db.bot_execution.update_one({'cid': obj.cid}, {"$set": {'current_step': next_step}})
+                else:
+                    return "enter a valid input"
+
+    return "success"
 
 
 if __name__ == '__main__':
