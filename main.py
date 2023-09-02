@@ -75,10 +75,11 @@ def next_step():
     if request.method == "GET":
         cid = request.args.get('cid')
         bot_id = request.args.get('bot_id')
-        next_step = request.args.get('next_step')
+        command = request.args.get('command')
         responses = db.bot_execution.find({'cid': cid})
         obj = 0
         count = 0
+        final_response = {}
         for r in responses:
             count = count + 1
             obj = BotExecution(**r)
@@ -91,7 +92,12 @@ def next_step():
             bot_steps = db.bot_steps.find({'step_id': '0'})
             for bot_step in bot_steps:
                 bot_step_obj = BotSteps(**bot_step)
-                return bot_step_obj.next_steps
+                final_response['message'] = bot_step_obj.step_message
+                final_response['next_steps'] = []
+                for every_next_step in bot_step_obj.next_steps:
+                    final_response['next_steps'].append(every_next_step['criteria_value'])
+            return final_response
+
         else:
             print('customer present')
             current_step_id = obj.current_step
@@ -99,12 +105,22 @@ def next_step():
             for bot_step in bot_steps:
                 bot_step_obj = BotSteps(**bot_step)
                 available_next_steps = bot_step_obj.next_steps
-                if next_step in available_next_steps:
-                    db.bot_execution.update_one({'cid': obj.cid}, {"$set": {'current_step': next_step}})
-                    bss = db.bot_steps.find({'step_id': next_step})
-                    for bs in bss:
-                        bsob = BotSteps(**bs)
-                        return bsob.next_steps
+                for every_next_step in available_next_steps:
+                    if every_next_step['criteria_type'] == 'text_match':
+                        criteria_value = every_next_step['criteria_value']
+                        criteria_value = criteria_value.upper();
+                        command = command.upper();
+                        if criteria_value == command:
+                            db.bot_execution.update_one({'cid': obj.cid},
+                                                        {"$set": {'current_step': every_next_step['next_step_id']}})
+                            next_to_next_steps = db.bot_steps.find({'step_id': every_next_step['next_step_id']})
+                            for obj in next_to_next_steps:
+                                next_to_next_step_obj = BotSteps(**obj)
+                                final_response['message'] = next_to_next_step_obj.step_message
+                                final_response['next_steps'] = []
+                                for every_next_to_next_step in next_to_next_step_obj.next_steps:
+                                    final_response['next_steps'].append(every_next_to_next_step['criteria_value'])
+                            return final_response
                 else:
                     return "enter a valid input"
 
@@ -112,4 +128,5 @@ def next_step():
 
 
 if __name__ == '__main__':
+    print(db)
     app.run()
